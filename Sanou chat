@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VELA - Par Numéro</title>
+<style>
+*{box-sizing:border-box;font-family:Arial} body{margin:0;background:#e9f5ee}
+.header{background:#00a884;color:white;padding:15px;text-align:center;font-size:22px;font-weight:bold}
+.box{max-width:420px;margin:15px auto;background:white;padding:18px;border-radius:15px}
+input{width:100%;padding:13px;margin:8px 0;border:1px solid #ddd;border-radius:10px;font-size:16px}
+button{width:100%;padding:13px;background:#00a884;color:white;border:none;border-radius:10px;font-size:16px;font-weight:bold;cursor:pointer}
+.small{font-size:13px;color:#666;text-align:center}
+.contact{padding:12px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center}
+.msg{padding:8px 12px;border-radius:12px;margin:6px 0;max-width:80%}
+.mine{background:#d9fdd3;margin-left:auto;text-align:right}
+.theirs{background:white}
+#chatArea{height:300px;overflow-y:auto;background:#efeae2;padding:10px;border-radius:10px}
+</style>
+</head>
+<body>
+<div class="header">VELA 💬 Par Numéro</div>
+
+<!-- ECRAN 1 : INSCRIPTION -->
+<div id="screenRegister" class="box">
+<h3>Bienvenue sur VELA</h3>
+<p class="small">Inscris-toi avec ton numéro</p>
+<input id="myName" placeholder="Ton nom, ex: Sanou">
+<input id="myNumber" placeholder="Ton numéro, ex: 622123456" type="tel">
+<button onclick="register()">Entrer dans VELA →</button>
+<p class="small">Ton numéro = ton identité sur VELA</p>
+</div>
+
+<!-- ECRAN 2 : LISTE -->
+<div id="screenMain" class="box" style="display:none">
+<p id="meInfo" style="font-weight:bold"></p>
+<h3>Ajouter par numéro</h3>
+<input id="friendNumber" placeholder="Numéro de ton ami, ex: 622987654" type="tel">
+<input id="friendName" placeholder="Son nom, ex: Aïcha">
+<button onclick="addFriend()">+ Écrire à ce numéro</button>
+<hr>
+<h3>Mes discussions</h3>
+<div id="contactsList"></div>
+<p class="small">Envoie ton lien VELA à ton ami.<br>Il doit s'inscrire avec son numéro, puis t'ajouter avec ton numéro.</p>
+<button onclick="copyLink()" style="background:#25D366">📋 Copier mon lien VELA</button>
+</div>
+
+<!-- ECRAN 3 : CHAT -->
+<div id="screenChat" class="box" style="display:none">
+<button onclick="back()" style="background:#888;width:auto;padding:8px 15px">← Retour</button>
+<h3 id="chatTitle">Discussion</h3>
+<div id="chatArea"></div>
+<input id="msgInput" placeholder="Écris un message...">
+<button onclick="sendMsg()">Envoyer ➤</button>
+<p class="small" id="chatHint"></p>
+</div>
+
+<script>
+let me = JSON.parse(localStorage.getItem('vela_me')||'null');
+let contacts = JSON.parse(localStorage.getItem('vela_contacts')||'[]');
+let messages = JSON.parse(localStorage.getItem('vela_msgs')||'{}');
+let current = null;
+
+function show(){
+ if(me){
+  document.getElementById('screenRegister').style.display='none';
+  document.getElementById('screenMain').style.display='block';
+  document.getElementById('meInfo').innerText = '👤 '+me.name+' • '+me.number;
+  renderContacts();
+ } 
+}
+show();
+
+function register(){
+ let n=document.getElementById('myName').value.trim();
+ let num=document.getElementById('myNumber').value.trim().replace(/\s/g,'');
+ if(!n||!num){alert('Mets ton nom et ton numéro');return;}
+ me={name:n,number:num};
+ localStorage.setItem('vela_me',JSON.stringify(me));
+ show();
+}
+function addFriend(){
+ let num=document.getElementById('friendNumber').value.trim().replace(/\s/g,'');
+ let nm=document.getElementById('friendName').value.trim()||num;
+ if(!num){alert('Mets le numéro de ton ami');return;}
+ if(!contacts.find(c=>c.number===num)){
+  contacts.push({number:num,name:nm});
+  localStorage.setItem('vela_contacts',JSON.stringify(contacts));
+ }
+ openChat(num);
+}
+function renderContacts(){
+ let d=document.getElementById('contactsList');
+ if(contacts.length===0){d.innerHTML='<p class="small">Aucune discussion. Ajoute un numéro en haut.</p>';return;}
+ d.innerHTML='';
+ contacts.forEach(c=>{
+  let div=document.createElement('div');div.className='contact';
+  div.innerHTML='<span><b>'+c.name+'</b><br><small>'+c.number+'</small></span><button style="width:auto;padding:8px 15px" onclick="openChat(\''+c.number+'\')">Écrire</button>';
+  d.appendChild(div);
+ });
+}
+function openChat(num){
+ current=num;
+ let c=contacts.find(x=>x.number===num);
+ document.getElementById('screenMain').style.display='none';
+ document.getElementById('screenChat').style.display='block';
+ document.getElementById('chatTitle').innerText='💬 '+(c?c.name:num)+' - '+num;
+ document.getElementById('chatHint').innerText='Ton ami doit aussi ouvrir VELA et t\'ajouter avec ton numéro : '+me.number+' pour te voir.';
+ renderMsgs();
+}
+function back(){
+ document.getElementById('screenChat').style.display='none';
+ document.getElementById('screenMain').style.display='block';
+ renderContacts();
+}
+function renderMsgs(){
+ let area=document.getElementById('chatArea');
+ let list=messages[current]||[];
+ area.innerHTML='';
+ list.forEach(m=>{
+  let d=document.createElement('div');d.className='msg '+(m.from===me.number?'mine':'theirs');d.innerText=m.text;area.appendChild(d);
+ });
+ area.scrollTop=area.scrollHeight;
+}
+function sendMsg(){
+ let t=document.getElementById('msgInput').value.trim();
+ if(!t)return;
+ if(!messages[current])messages[current]=[];
+ messages[current].push({from:me.number,text:t});
+ localStorage.setItem('vela_msgs',JSON.stringify(messages));
+ document.getElementById('msgInput').value='';
+ renderMsgs();
+}
+function copyLink(){
+ let link=location.href.split('?')[0]+'?invite='+me.number;
+ navigator.clipboard.writeText('Rejoins-moi sur VELA, mon numéro est '+me.number+' : '+link);
+ alert('Lien copié ! Envoie-le sur WhatsApp. Ton numéro : '+me.number);
+}
+// Si on arrive avec ?invite=...
+let p=new URLSearchParams(location.search);
+if(p.get('invite')){
+ setTimeout(()=>{document.getElementById('friendNumber').value=p.get('invite');},500);
+}
+</script>
+</body>
+</html>
