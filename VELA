@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="fr"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#075E54">
+<title>SANOU CHAT</title>
+<style>
+*{box-sizing:border-box;margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+html,body{height:100%;background:#fff;color:#111}
+.v{display:none;height:100%;max-width:480px;margin:0 auto;flex-direction:column;background:#fff}
+.v.on{display:flex}
+header{background:#075E54;color:#fff;padding:14px 16px;padding-top:max(14px,env(safe-area-inset-top));display:flex;align-items:center;gap:12px}
+header h1{font-size:20px;flex:1}
+button{border:0;cursor:pointer;font-size:16px;font-weight:700}
+.btn{background:#25D366;color:#fff;padding:16px;border-radius:14px;width:100%}
+.ib{background:none;color:#fff;font-size:24px}
+input{width:100%;padding:14px;border:1px solid #ccc;border-radius:12px;font-size:16px;outline:0}
+.row{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid #eee;cursor:pointer}
+.av{position:relative;width:46px;height:46px;border-radius:50%;background:#128C7E;color:#fff;display:grid;place-items:center;font-weight:800;font-size:19px;flex:none}
+.av i{position:absolute;right:0;bottom:0;width:13px;height:13px;border-radius:50%;background:#25D366;border:2px solid #fff}
+.sm{font-size:13px;color:#667;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.b{max-width:80%;padding:7px 10px;border-radius:10px;background:#fff;align-self:flex-start;font-size:16px;word-break:break-word;box-shadow:0 1px 1px #0002}
+.b.me{background:#DCF8C6;align-self:flex-end}
+.b small{display:block;text-align:right;font-size:11px;color:#667;margin-top:2px}
+</style></head><body>
+
+<div id="signup" class="v" style="padding:28px;justify-content:center;gap:14px;text-align:center">
+  <div style="font-size:54px">💬</div>
+  <h1 style="color:#075E54;letter-spacing:2px">SANOU CHAT</h1>
+  <p id="invmsg" style="color:#555">Discute avec tes amis, où qu’ils soient.</p>
+  <input id="nm" placeholder="Ton prénom" maxlength="30" autocomplete="given-name">
+  <button class="btn" onclick="signup()">Créer mon compte</button>
+  <p id="err" style="color:#c62828"></p>
+</div>
+
+<div id="list" class="v">
+  <header><h1>SANOU CHAT</h1><button class="ib" onclick="openAdd()">➕</button></header>
+  <div id="cl" style="flex:1;overflow:auto"></div>
+</div>
+
+<div id="chat" class="v" style="background:#ECE5DD">
+  <header><button class="ib" onclick="back()">←</button><div id="hd" style="flex:1"></div></header>
+  <div id="ms" style="flex:1;overflow:auto;padding:10px;display:flex;flex-direction:column;gap:5px"></div>
+  <form onsubmit="send(event)" style="display:flex;gap:8px;padding:8px;padding-bottom:max(8px,env(safe-area-inset-bottom));background:#f0f0f0">
+    <input id="tx" placeholder="Écrire un message" autocomplete="off"><button class="btn" style="width:54px;padding:0">➤</button>
+  </form>
+</div>
+
+<div id="add" style="display:none;position:fixed;inset:0;background:#0008;align-items:flex-end;justify-content:center;z-index:9" onclick="if(event.target==this)this.style.display='none'">
+  <div style="background:#fff;width:100%;max-width:480px;border-radius:20px 20px 0 0;padding:20px;display:flex;flex-direction:column;gap:10px;max-height:88%;overflow:auto">
+    <b>Invite ton amie avec ton lien</b>
+    <input id="lk" readonly onclick="this.select()">
+    <button class="btn" onclick="cp()">📋 Copier mon lien</button>
+    <button class="btn" style="background:#128C7E" onclick="wa()">Envoyer sur WhatsApp</button>
+    <b style="margin-top:8px">Ou cherche-la par prénom</b>
+    <input id="q" placeholder="Prénom de ton amie" oninput="srch()">
+    <div id="rs"></div>
+    <b style="margin-top:8px">J’ai un code d’invitation</b>
+    <input id="cd" placeholder="Code (6 caractères)">
+    <button class="btn" onclick="byCode()">Ajouter</button>
+  </div>
+</div>
+
+<script type="module">
+const cfg = {
+  apiKey: "AIzaSyCxAdvCb7FKlCvF__jFtOKsVsuIvRjJK5I",
+  authDomain: "sanou-chat.firebaseapp.com",
+  projectId: "sanou-chat",
+  storageBucket: "sanou-chat.firebasestorage.app",
+  messagingSenderId: "286693693151",
+  appId: "1:286693693151:web:f21db6c576185b5fa4bb6a"
+};
+const $=i=>document.getElementById(i);
+const V="10.12.2",G="https://www.gstatic.com/firebasejs/"+V+"/";
+const {initializeApp}=await import(G+"firebase-app.js");
+const {getAuth,signInAnonymously}=await import(G+"firebase-auth.js");
+const {getFirestore,doc,getDoc,setDoc,updateDoc,addDoc,collection,query,where,orderBy,limit,onSnapshot,getDocs,serverTimestamp}=await import(G+"firebase-firestore.js");
+const app=initializeApp(cfg),auth=getAuth(app),db=getFirestore(app);
+
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const hm=t=>new Date(t).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
+let me,prof,convs=[],peers={},cur=null,unsubM=null;
+let inv=(location.hash.match(/add=([a-z0-9]+)/i)||[])[1]||localStorage.getItem("inv");
+if(inv)localStorage.setItem("inv",inv);
+const show=v=>["signup","list","chat"].forEach(x=>$(x).classList.toggle("on",x==v));
+const err=m=>$("err").textContent=m;
+const other=c=>c.members.find(x=>x!=me.uid);
+const isOn=u=>peers[u]&&peers[u].lastSeen&&Date.now()-peers[u].lastSeen<60000;
+const link=()=>location.origin+location.pathname+"#add="+prof.code;
+
+if(inv)$("invmsg").textContent="Tu es invité(e) 🎉 Crée ton compte pour discuter.";
+await auth.authStateReady();
+if(auth.currentUser){
+  me=auth.currentUser;
+  const s=await getDoc(doc(db,"profiles",me.uid));
+  if(s.exists()){prof=s.data();start()}else show("signup");
+}else show("signup");
+
+async function signup(){
+  const name=$("nm").value.trim();
+  if(name.length<2)return err("Écris ton prénom (2 lettres minimum)");
+  err("");
+  try{
+    if(!auth.currentUser)await signInAnonymously(auth);
+    me=auth.currentUser;
+    prof={name,nameLower:name.toLowerCase(),code:Math.random().toString(36).slice(2,8),lastSeen:Date.now()};
+    await setDoc(doc(db,"profiles",me.uid),prof);
+    start();
+  }catch(e){err("Erreur : "+e.message)}
+}
+
+async function start(){
+  show("list");
+  const beat=()=>updateDoc(doc(db,"profiles",me.uid),{lastSeen:Date.now()}).catch(()=>{});
+  beat();setInterval(beat,20000);
+  setInterval(()=>{renderList();head()},20000);
+  onSnapshot(query(collection(db,"conversations"),where("members","array-contains",me.uid)),s=>{
+    convs=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.lastAt||0)-(a.lastAt||0));
+    convs.forEach(c=>watch(other(c)));renderList();
+  });
+  if(inv){
+    const c=inv;inv=null;localStorage.removeItem("inv");history.replaceState(null,"",location.pathname);
+    await addByCode(c);
+  }
+}
+function watch(u){
+  if(peers[u])return;peers[u]={name:"…"};
+  onSnapshot(doc(db,"profiles",u),s=>{peers[u]=s.data()||{name:"?"};renderList();head()});
+}
+function renderList(){
+  $("cl").innerHTML=convs.length?convs.map(c=>{const u=other(c),p=peers[u]||{name:"…"};
+    return `<div class="row" onclick="open_('${c.id}','${u}')"><div class="av">${esc([...p.name][0].toUpperCase())}${isOn(u)?"<i></i>":""}</div><div style="flex:1;min-width:0"><b>${esc(p.name)}</b><div class="sm">${c.lastBody?esc(c.lastBody):"Dis bonjour 👋"}</div></div><span class="sm">${c.lastAt?hm(c.lastAt):""}</span></div>`}).join("")
+    :'<p style="padding:30px;text-align:center;color:#666">Aucune discussion pour le moment.<br>Appuie sur ➕ pour inviter ton amie.</p>';
+}
+
+async function openConv(u){
+  const m=[me.uid,u].sort(),id=m.join("_");
+  await setDoc(doc(db,"conversations",id),{members:m},{merge:true});
+  return id;
+}
+async function addByCode(c){
+  const s=await getDocs(query(collection(db,"profiles"),where("code","==",c.trim().toLowerCase()),limit(1)));
+  if(s.empty||s.docs[0].id==me.uid)return false;
+  const u=s.docs[0].id;open_(await openConv(u),u);return true;
+}
+
+function open_(id,u){
+  cur={id,u};watch(u);$("add").style.display="none";show("chat");head();
+  if(unsubM)unsubM();
+  unsubM=onSnapshot(query(collection(db,"conversations",id,"messages"),orderBy("t"),limit(300)),s=>{
+    $("ms").innerHTML=s.docs.map(d=>{const m=d.data({serverTimestamps:"estimate"});
+      return `<div class="b ${m.sender==me.uid?"me":""}">${esc(m.body)}<small>${m.t?hm(m.t.toMillis()):""}</small></div>`}).join("");
+    const e=$("ms");e.scrollTop=e.scrollHeight;
+  });
+}
+function head(){
+  if(!cur||!$("chat").classList.contains("on"))return;
+  const p=peers[cur.u]||{name:"…"};
+  $("hd").innerHTML=`<b>${esc(p.name)}</b><div style="font-size:12px">${isOn(cur.u)?"● en ligne":"hors ligne"}</div>`;
+}
+function back(){cur=null;if(unsubM)unsubM();unsubM=null;show("list")}
+async function send(e){
+  e.preventDefault();
+  const t=$("tx").value.trim();if(!t)return;$("tx").value="";
+  try{
+    await addDoc(collection(db,"conversations",cur.id,"messages"),{sender:me.uid,body:t,t:serverTimestamp()});
+    await updateDoc(doc(db,"conversations",cur.id),{lastBody:t,lastAt:Date.now()});
+  }catch(x){alert("Message non envoyé : "+x.message);$("tx").value=t}
+}
+
+function openAdd(){$("lk").value=link();$("add").style.display="flex"}
+function cp(){if(navigator.clipboard)navigator.clipboard.writeText(link());alert("Lien copié ✓")}
+function wa(){location.href="https://wa.me/?text="+encodeURIComponent("Rejoins-moi sur SANOU CHAT 💬 "+link())}
+async function srch(){
+  const q=$("q").value.trim().toLowerCase();
+  if(q.length<2){$("rs").innerHTML="";return}
+  const s=await getDocs(query(collection(db,"profiles"),where("nameLower",">=",q),where("nameLower","<=",q+"\uf8ff"),limit(10)));
+  $("rs").innerHTML=s.docs.filter(d=>d.id!=me.uid).map(d=>`<div class="row" onclick="pick('${d.id}')"><div class="av">${esc([...d.data().name][0].toUpperCase())}</div><b>${esc(d.data().name)}</b></div>`).join("")||'<p class="sm">Personne trouvée</p>';
+}
+async function pick(u){open_(await openConv(u),u)}
+async function byCode(){if(!await addByCode($("cd").value))alert("Code invalide")}
+
+Object.assign(window,{signup,openAdd,cp,wa,srch,pick,byCode,back,send,open_});
+</script></body></html>
