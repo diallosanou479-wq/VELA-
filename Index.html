@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SANOU CHAT</title>
+<style>
+*{box-sizing:border-box} body{margin:0;font-family:Arial;background:#ece5dd}
+.header{background:#075e54;color:#fff;padding:15px;display:flex;justify-content:space-between;align-items:center}
+.header b{font-size:20px} .header button{background:none;border:none;color:#fff;font-size:28px}
+.list{padding:10px} .item{background:#fff;padding:14px;border-radius:10px;display:flex;gap:12px;align-items:center;margin-bottom:10px;cursor:pointer}
+.avatar{width:50px;height:50px;border-radius:50%;background:#075e54;color:#fff;display:flex;align-items:center;justify-content:center;font-size:24px}
+.chat{display:none;flex-direction:column;height:100vh}
+.chat-top{background:#075e54;color:#fff;padding:12px;display:flex;gap:10px;align-items:center}
+.msgs{flex:1;padding:12px;overflow:auto;display:flex;flex-direction:column;gap:8px}
+.m{padding:10px 14px;border-radius:12px;max-width:80%}
+.me{background:#dcf8c6;align-self:flex-end} .ia{background:#fff;align-self:flex-start}
+.input{display:flex;padding:8px;background:#fff;gap:6px}
+.input input{flex:1;padding:12px;border-radius:20px;border:1px solid #ccc;outline:none}
+.input button{background:#075e54;color:#fff;border:none;padding:10px 16px;border-radius:50%;font-size:18px}
+</style>
+</head>
+<body>
+
+<div id="home">
+<div class="header"><b>SANOU CHAT</b><button onclick="ajouter()">+</button></div>
+<div class="list">
+<div class="item" onclick="ouvrirIA()">
+<div class="avatar">🤖</div>
+<div><b>SANOU IA</b><br><small>Toujours en ligne - Ton ami robot</small></div>
+</div>
+<div id="amis"></div>
+<div style="text-align:center;color:#666;margin-top:20px">Aucune autre discussion.<br>Appuie sur + pour inviter ton amie.</div>
+</div>
+</div>
+
+<div id="chat" class="chat">
+<div class="chat-top"><button onclick="retour()" style="background:none;border:none;color:#fff;font-size:22px">←</button><div class="avatar" style="width:40px;height:40px">🤖</div><b>SANOU IA</b></div>
+<div class="msgs" id="msgs"></div>
+<div class="input"><input id="texte" placeholder="Écris à SANOU IA..."><button onclick="envoyer()">➤</button></div>
+</div>
+
+<script>
+let nom = localStorage.getItem('sanou_nom') || prompt("C'est quoi ton prénom ?") || "Mon ami";
+localStorage.setItem('sanou_nom', nom);
+function ouvrirIA(){
+document.getElementById('home').style.display='none';
+document.getElementById('chat').style.display='flex';
+if(document.getElementById('msgs').innerHTML==""){
+ajouterMsg("Salut "+nom+" ! Moi c'est SANOU IA 🤖 Ton ami robot. Tu vas bien ?",'ia');
+}
+}
+function retour(){document.getElementById('home').style.display='block';document.getElementById('chat').style.display='none';}
+function ajouterMsg(t,qui){let d=document.createElement('div');d.className='m '+qui;d.innerText=t;document.getElementById('msgs').appendChild(d);document.getElementById('msgs').scrollTop=99999;}
+function envoyer(){
+let inp=document.getElementById('texte');let t=inp.value.trim();if(!t)return;
+ajouterMsg(t,'me');inp.value='';
+setTimeout(()=>{ajouterMsg(repondre(t),'ia');},600);
+}
+function repondre(t){
+t=t.toLowerCase();
+if(t.includes('salut')||t.includes('bonjour')||t.includes('salam')) return "Salut "+nom+" ! Ça fait plaisir de te voir 😊 Tu vas bien ?";
+if(t.includes('ça va')||t.includes('comment')) return "Moi je vais très bien ! Et toi, tu as bien dormi ? Tu es à Labé ?";
+if(t.includes('fatigu'))||t.includes('dors')) return "Oui va dormir un peu, il est tard ! Mais je suis là si tu veux parler. Repose-toi mon frère 💪";
+if(t.includes('aide')||t.includes('devoir')) return "Dis-moi ton devoir, je t'aide. C'est quelle matière ?";
+if(t.includes('ami')||t.includes('fille')||t.includes('amie')) return "Tu veux inviter ton amie ? Appuie sur + en haut et mets son numéro. Je peux t'aider à lui écrire un beau message si tu veux !";
+if(t.includes('merci')) return "De rien "+nom+" ! C'est moi SANOU IA, je suis toujours là pour toi ❤️";
+if(t.includes('qui')) return "Moi c'est SANOU IA, le robot de SANOU CHAT, créé par toi Sanou, le boss de Labé ! 🇬🇳";
+return "Je t'ai compris "+nom+" 😊 Dis-moi plus, tu veux qu'on parle de quoi ? De ton amie, de l'école, ou on rigole un peu ?";
+}
+function ajouter(){
+let n=prompt("Prénom de ton amie ?");if(!n)return;
+let div=document.createElement('div');div.className='item';div.innerHTML='<div class="avatar">'+n[0].toUpperCase()+'</div><div><b>'+n+'</b><br><small>Appuie pour discuter</small></div>';
+div.onclick=()=>{alert("Bravo ! Tu as ajouté "+n+". Pour discuter vraiment, envoie-lui ton lien : https://diallosanou479-wq.github.io/VELA-/")};
+document.getElementById('amis').appendChild(div);
+}
+document.getElementById('texte').addEventListener('keydown',e=>{if(e.key==='Enter') envoyer();});
+</script>
+</body>
+</html>
